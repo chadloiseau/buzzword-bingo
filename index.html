@@ -83,6 +83,10 @@
       align-items: center;
     }
 
+    #game.active {
+      max-width: 900px;
+    }
+
     /* ============================================================
      FORMS & BUTTONS
      ============================================================ */
@@ -254,6 +258,110 @@
       color: var(--text-dim);
       font-style: italic;
       margin-top: 12px;
+    }
+
+    /* ============================================================
+     LOBBY OVERLAY (shown on top of game screen)
+     ============================================================ */
+    .lobby-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 15, 26, 0.88);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .lobby-overlay.active {
+      display: flex;
+    }
+
+    .lobby-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .lobby-panel h2 {
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    .lobby-panel .session-code-display {
+      font-size: 1.8rem;
+      padding: 12px 24px;
+      margin: 12px 0;
+    }
+
+    .lobby-panel .player-list {
+      max-width: 100%;
+      margin: 12px auto;
+    }
+
+    .lobby-panel .btn-group {
+      margin-top: 12px;
+      gap: 8px;
+    }
+
+    .bingo-board.preview {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .btn-bingo.hidden {
+      display: none;
+    }
+
+    /* ============================================================
+     GAME LAYOUT (two-column on desktop)
+     ============================================================ */
+    .game-layout {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .game-board-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .game-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .game-sidebar .progress-panel {
+      margin-top: 0;
+      width: 100%;
+    }
+
+    @media (max-width: 700px) {
+      .game-layout {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .game-sidebar {
+        width: 100%;
+        max-width: 500px;
+      }
     }
 
     /* ============================================================
@@ -686,40 +794,26 @@
     </div>
   </div>
 
-  <!-- ====================== LOBBY SCREEN ====================== -->
-  <div id="lobby" class="screen">
-    <h1>Buzzword Bingo</h1>
-    <p class="subtitle">Share this code with your friends</p>
-
-    <div class="session-code-display" id="lobbyCode"></div>
-
-    <button class="btn btn-secondary" onclick="copySessionLink()" id="copyLinkBtn">Copy Invite Link</button>
-
-    <ul class="player-list" id="playerList"></ul>
-
-    <div id="lobbyHostControls" style="display:none;">
-      <button class="btn btn-primary" onclick="startGame()" id="startGameBtn">Start Game</button>
-      <button class="btn btn-danger" onclick="endSession()">End Session</button>
-    </div>
-    <p class="waiting-msg" id="lobbyWaiting" style="display:none;">Waiting for host to start the game...</p>
-  </div>
-
   <!-- ====================== GAME SCREEN ====================== -->
   <div id="game" class="screen">
     <h1>Buzzword Bingo</h1>
     <p class="round-info" id="roundInfo">Round 1</p>
 
-    <div class="bingo-board" id="bingoBoard"></div>
+    <div class="game-layout">
+      <div class="game-board-col">
+        <div class="bingo-board" id="bingoBoard"></div>
+        <button class="btn btn-bingo" id="bingoBtn" disabled onclick="declareBingo()">BINGO!</button>
+        <div id="gameError" class="error-msg"></div>
+      </div>
 
-    <button class="btn btn-bingo" id="bingoBtn" disabled onclick="declareBingo()">BINGO!</button>
-    <div id="gameError" class="error-msg"></div>
-
-    <div class="progress-panel">
-      <h3>Players</h3>
-      <ul class="progress-list" id="progressList"></ul>
+      <div class="game-sidebar">
+        <div class="progress-panel">
+          <h3>Players</h3>
+          <ul class="progress-list" id="progressList"></ul>
+        </div>
+        <button class="btn btn-danger" id="endSessionGameBtn" style="display:none;" onclick="endSession()">End Session</button>
+      </div>
     </div>
-
-    <button class="btn btn-danger" id="endSessionGameBtn" style="display:none;" onclick="endSession()">End Session</button>
   </div>
 
   <!-- ====================== WINNER OVERLAY ====================== -->
@@ -732,6 +826,23 @@
     </div>
   </div>
   <div class="confetti-container" id="confetti"></div>
+
+  <!-- ====================== LOBBY OVERLAY (over game screen) ====================== -->
+  <div class="lobby-overlay" id="lobbyOverlay">
+    <div class="lobby-panel">
+      <h2>Share this code with your friends</h2>
+      <div class="session-code-display" id="lobbyCode"></div>
+      <button class="btn btn-secondary" onclick="copySessionLink()" id="copyLinkBtn" style="margin-bottom:8px;">Copy Invite Link</button>
+      <ul class="player-list" id="playerList"></ul>
+      <div id="lobbyHostControls" style="display:none;">
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="startGame()" id="startGameBtn">Start Game</button>
+        </div>
+        <button class="btn btn-danger" onclick="endSession()">End Session</button>
+      </div>
+      <p class="waiting-msg" id="lobbyWaiting" style="display:none;">Waiting for host to start the game...</p>
+    </div>
+  </div>
 
   <!-- ====================== SESSION ENDED OVERLAY ====================== -->
   <div class="ended-overlay" id="endedOverlay">
@@ -973,9 +1084,22 @@
       enterLobby();
     }
 
-    // ---- Lobby ----
+    // ---- Lobby (shows game screen with card preview + lobby overlay) ----
     function enterLobby() {
-      showScreen('lobby');
+      showScreen('game');
+
+      // Generate and show the card in preview mode
+      cardWords = generateCard(currentSeed, playerId);
+      markedCells = new Set();
+      markedCells.add(12);
+      document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
+      renderBoard();
+      document.getElementById('bingoBoard').classList.add('preview');
+      document.getElementById('bingoBtn').classList.add('hidden');
+      document.getElementById('endSessionGameBtn').style.display = 'none';
+
+      // Show lobby overlay
+      document.getElementById('lobbyOverlay').classList.add('active');
       document.getElementById('lobbyCode').textContent = sessionId;
 
       if (isHost) {
@@ -995,6 +1119,9 @@
         for (const [pid, pdata] of Object.entries(players)) {
           const li = document.createElement('li');
           li.textContent = pdata.name;
+          if (pid === playerId) {
+            li.style.color = 'var(--accent)';
+          }
           // Check if this player is the host
           db.ref('bingo-sessions/' + sessionId + '/host').once('value').then(hostSnap => {
             if (hostSnap.val() === pid) {
@@ -1023,6 +1150,7 @@
           });
         } else if (status === 'ended' && !isHost) {
           cleanupListeners();
+          document.getElementById('lobbyOverlay').classList.remove('active');
           document.getElementById('endedOverlay').classList.add('active');
         }
       });
@@ -1039,6 +1167,11 @@
     function enterGame() {
       // Clean up lobby listeners
       cleanupListeners();
+
+      // Dismiss lobby overlay and enable the board
+      document.getElementById('lobbyOverlay').classList.remove('active');
+      document.getElementById('bingoBoard').classList.remove('preview');
+      document.getElementById('bingoBtn').classList.remove('hidden');
       showScreen('game');
 
       // Show End Session button for host
@@ -1440,9 +1573,13 @@
       document.getElementById('playerName').value = '';
       document.getElementById('joinCode').value = '';
       document.getElementById('landingError').textContent = '';
-      // Hide winner overlay if open
+      // Hide overlays
       document.getElementById('winnerOverlay').classList.remove('active');
+      document.getElementById('lobbyOverlay').classList.remove('active');
       document.getElementById('confetti').innerHTML = '';
+      // Reset board state
+      document.getElementById('bingoBoard').classList.remove('preview');
+      document.getElementById('bingoBtn').classList.remove('hidden');
     }
 
     // ---- Confetti ----
