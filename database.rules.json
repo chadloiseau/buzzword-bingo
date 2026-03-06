@@ -1,0 +1,8 @@
+{
+    "rules": {
+        "bingo-sessions": {
+            ".read": true,
+            ".write": true
+        }
+    }
+}

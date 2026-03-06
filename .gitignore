@@ -1,0 +1,10 @@
+# Firebase
+.firebase/
+firebase-debug.log*
+.dataconnect/
+
+# Assets
+.DS_Store
+
+# Vercel
+.vercel/

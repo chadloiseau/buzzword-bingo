@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Buzzword Bingo</title>
+
+  <!-- Firebase SDK (compat mode for simplicity) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+  <style>
+    /* ============================================================
+     RESET & BASE
+     ============================================================ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0f0f1a;
+      --bg-card: #1a1a2e;
+      --bg-cell: #16213e;
+      --bg-cell-hover: #1c2a4a;
+      --bg-cell-marked: #0f9b58;
+      --accent: #00d4aa;
+      --accent-glow: rgba(0, 212, 170, 0.3);
+      --text: #e8e8f0;
+      --text-dim: #8888a0;
+      --text-on-accent: #fff;
+      --border: #2a2a4a;
+      --danger: #ff4757;
+      --gold: #ffd700;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent), #7c4dff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    /* ============================================================
+     SCREENS (show/hide via JS)
+     ============================================================ */
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ============================================================
+     FORMS & BUTTONS
+     ============================================================ */
+    input[type="text"] {
+      background: var(--bg-cell);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 1rem;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 12px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="text"]::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #7c4dff);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: var(--bg-cell);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+    }
+
+    .btn-bingo {
+      background: linear-gradient(135deg, var(--gold), #ff8c00);
+      color: #1a1a2e;
+      font-size: 1.3rem;
+      padding: 14px 48px;
+      margin-top: 16px;
+      animation: none;
+    }
+
+    .btn-bingo.ready {
+      animation: bingo-pulse 1s infinite;
+    }
+
+    .btn-bingo:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      animation: none;
+    }
+
+    @keyframes bingo-pulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+      }
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 16px;
+    }
+
+    /* ============================================================
+     LANDING
+     ============================================================ */
+    #landing .or-divider {
+      color: var(--text-dim);
+      margin: 16px 0;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* ============================================================
+     LOBBY
+     ============================================================ */
+    .session-code-display {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 6px;
+      color: var(--accent);
+      background: var(--bg-cell);
+      padding: 16px 32px;
+      border-radius: 12px;
+      border: 2px dashed var(--border);
+      margin: 16px 0;
+      user-select: all;
+    }
+
+    .player-list {
+      list-style: none;
+      width: 100%;
+      max-width: 320px;
+      margin: 16px 0;
+    }
+
+    .player-list li {
+      padding: 10px 16px;
+      background: var(--bg-cell);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+
+    .player-list li .host-badge {
+      font-size: 0.7rem;
+      background: var(--accent);
+      color: var(--bg);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .waiting-msg {
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: 12px;
+    }
+
+    /* ============================================================
+     BINGO GRID
+     ============================================================ */
+    .bingo-board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      width: 100%;
+      max-width: 500px;
+      margin: 12px auto;
+    }
+
+    .bingo-header {
+      background: linear-gradient(135deg, #1a1a2e, #2a2a4a);
+      color: var(--accent);
+      font-size: clamp(1.1rem, 3vw, 1.5rem);
+      font-weight: 800;
+      padding: 10px 0;
+      text-align: center;
+      border-radius: 6px 6px 0 0;
+      letter-spacing: 2px;
+    }
+
+    .bingo-cell {
+      background: var(--bg-cell);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 4px;
+      text-align: center;
+      font-size: clamp(0.65rem, 2vw, 0.82rem);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      position: relative;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .bingo-cell:hover {
+      background: var(--bg-cell-hover);
+    }
+
+    .bingo-cell.marked {
+      background: var(--bg-cell-marked);
+      color: var(--text-on-accent);
+      border-color: var(--bg-cell-marked);
+      font-weight: 700;
+      transform: scale(0.96);
+    }
+
+    .bingo-cell.marked::after {
+      content: '\2713';
+      position: absolute;
+      top: 3px;
+      right: 5px;
+      font-size: 0.7rem;
+      opacity: 0.7;
+    }
+
+    .bingo-cell.free {
+      background: var(--bg-cell-marked);
+      color: var(--text-on-accent);
+      font-weight: 700;
+      border-color: var(--bg-cell-marked);
+      cursor: default;
+    }
+
+    .bingo-cell.winning-cell {
+      animation: winning-glow 0.6s ease-in-out infinite alternate;
+      border-color: var(--gold);
+    }
+
+    @keyframes winning-glow {
+      from {
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+      }
+
+      to {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+      }
+    }
+
+    /* ============================================================
+     WINNER OVERLAY
+     ============================================================ */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+
+    .overlay.active {
+      display: flex;
+    }
+
+    .winner-card {
+      background: var(--bg-card);
+      border: 2px solid var(--gold);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 0 60px rgba(255, 215, 0, 0.3);
+    }
+
+    .winner-card .trophy {
+      font-size: 4rem;
+      margin-bottom: 12px;
+    }
+
+    .winner-card .winner-name {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    .winner-card .winner-line {
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    /* ============================================================
+     CONFETTI
+     ============================================================ */
+    .confetti-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 101;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      animation: confetti-fall linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      to {
+        top: 110vh;
+        transform: rotate(720deg);
+      }
+    }
+
+    /* ============================================================
+     ROUND INFO
+     ============================================================ */
+    .round-info {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+    @media (max-width: 480px) {
+      .bingo-board {
+        gap: 3px;
+      }
+
+      .bingo-cell {
+        padding: 6px 2px;
+        font-size: 0.6rem;
+      }
+
+      .winner-card {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ====================== LANDING SCREEN ====================== -->
+  <div id="landing" class="screen active">
+    <h1>Buzzword Bingo</h1>
+    <p class="subtitle">Real-time multiplayer business buzzword bingo</p>
+
+    <input type="text" id="playerName" placeholder="Your name" maxlength="20" autocomplete="off">
+    <div id="landingError" class="error-msg"></div>
+
+    <div class="btn-group" style="margin-top: 12px;">
+      <button class="btn btn-primary" onclick="createSession()">Create Session</button>
+    </div>
+
+    <div class="or-divider">— or join an existing game —</div>
+
+    <input type="text" id="joinCode" placeholder="Session code" maxlength="6" autocomplete="off"
+      style="text-transform: uppercase;">
+    <div class="btn-group">
+      <button class="btn btn-secondary" onclick="joinSession()">Join Session</button>
+    </div>
+  </div>
+
+  <!-- ====================== LOBBY SCREEN ====================== -->
+  <div id="lobby" class="screen">
+    <h1>Buzzword Bingo</h1>
+    <p class="subtitle">Share this code with your friends</p>
+
+    <div class="session-code-display" id="lobbyCode"></div>
+
+    <button class="btn btn-secondary" onclick="copySessionLink()" id="copyLinkBtn">Copy Invite Link</button>
+
+    <ul class="player-list" id="playerList"></ul>
+
+    <div id="lobbyHostControls" style="display:none;">
+      <button class="btn btn-primary" onclick="startGame()" id="startGameBtn">Start Game</button>
+    </div>
+    <p class="waiting-msg" id="lobbyWaiting" style="display:none;">Waiting for host to start the game...</p>
+  </div>
+
+  <!-- ====================== GAME SCREEN ====================== -->
+  <div id="game" class="screen">
+    <h1>Buzzword Bingo</h1>
+    <p class="round-info" id="roundInfo">Round 1</p>
+
+    <div class="bingo-board" id="bingoBoard"></div>
+
+    <button class="btn btn-bingo" id="bingoBtn" disabled onclick="declareBingo()">BINGO!</button>
+    <div id="gameError" class="error-msg"></div>
+  </div>
+
+  <!-- ====================== WINNER OVERLAY ====================== -->
+  <div class="overlay" id="winnerOverlay">
+    <div class="winner-card">
+      <div class="trophy">🏆</div>
+      <div class="winner-name" id="winnerName"></div>
+      <div class="winner-line" id="winnerLine"></div>
+      <div id="winnerControls"></div>
+    </div>
+  </div>
+  <div class="confetti-container" id="confetti"></div>
+
+  <!-- ====================== APP LOGIC ====================== -->
+  <script>
+    // =============================================================
+    // FIREBASE CONFIG — Paste your Firebase config here
+    // =============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8UGPJfJY4cffA1uRs0PVgQMqdD4H-gr0",
+      authDomain: "business-bingo-2564e.firebaseapp.com",
+      projectId: "business-bingo-2564e",
+      storageBucket: "business-bingo-2564e.firebasestorage.app",
+      messagingSenderId: "153447000397",
+      appId: "1:153447000397:web:27e647fa3e17891c28af04",
+      measurementId: "G-P297WL83R3"
+    };
+    // =============================================================
+    // Firebase RTDB Rules (set in Firebase Console):
+    // {
+    //   "rules": {
+    //     "bingo-sessions": {
+    //       ".read": true,
+    //       ".write": true
+    //     }
+    //   }
+    // }
+    // =============================================================
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ---- State ----
+    let sessionId = null;
+    let playerId = null;
+    let playerName = '';
+    let isHost = false;
+    let currentSeed = 0;
+    let currentRound = 1;
+    let markedCells = new Set();
+    let cardWords = [];
+    let listeners = [];
+
+    // ---- Master Buzzword List (50 words) ----
+    const BUZZWORDS = [
+      "Synergy", "Low-Hanging Fruit", "Move the Needle", "Circle Back", "Bandwidth",
+      "Deep Dive", "Leverage", "Align on This", "Run it up the Flagpole", "Ecosystem",
+      "Pivot", "Value-Add", "Take This Offline", "Boil the Ocean", "Scalable",
+      "Net-Net", "Thought Leadership", "Drill Down", "Tiger Team", "Parking Lot",
+      "Disruptive", "Double-Click", "Unpack That", "North Star", "Quick Win",
+      "Touch Base", "Action Items", "Optics", "Guardrails", "Buy-In",
+      "Stakeholder", "Bleeding Edge", "Game Changer", "Best Practice", "Ideate",
+      "Circle the Wagons", "Table Stakes", "Cadence", "Headwinds", "Tailwinds",
+      "Ducks in a Row", "Open the Kimono", "Solutioning", "Rightsizing", "Core Competency",
+      "Swim Lane", "Hard Stop", "Lean In", "End of the Day", "Bio Break"
+    ];
+
+    // ---- Seeded PRNG (mulberry32) ----
+    function mulberry32(seed) {
+      return function () {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashString(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const ch = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + ch;
+        hash |= 0;
+      }
+      return hash;
+    }
+
+    // ---- Card Generation (deterministic per seed + playerId) ----
+    function generateCard(seed, pid) {
+      const combinedSeed = seed ^ hashString(pid);
+      const rng = mulberry32(combinedSeed);
+
+      // Shuffle copy of buzzwords using Fisher-Yates with seeded RNG
+      const words = [...BUZZWORDS];
+      for (let i = words.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [words[i], words[j]] = [words[j], words[i]];
+      }
+
+      // Pick 24 words, place in 5x5 grid with FREE center
+      const grid = [];
+      let idx = 0;
+      for (let r = 0; r < 5; r++) {
+        const row = [];
+        for (let c = 0; c < 5; c++) {
+          if (r === 2 && c === 2) {
+            row.push('FREE SPACE');
+          } else {
+            row.push(words[idx++]);
+          }
+        }
+        grid.push(row);
+      }
+      return grid;
+    }
+
+    // ---- Screen Management ----
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ---- Generate Session Code ----
+    function generateSessionCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+      let code = '';
+      for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    function generatePlayerId() {
+      return 'p_' + Math.random().toString(36).substring(2, 10);
+    }
+
+    // ---- Create Session ----
+    async function createSession() {
+      playerName = document.getElementById('playerName').value.trim();
+      if (!playerName) {
+        document.getElementById('landingError').textContent = 'Please enter your name';
+        return;
+      }
+      document.getElementById('landingError').textContent = '';
+
+      sessionId = generateSessionCode();
+      playerId = generatePlayerId();
+      isHost = true;
+      currentSeed = Math.floor(Math.random() * 2147483647);
+      currentRound = 1;
+
+      const sessionRef = db.ref('bingo-sessions/' + sessionId);
+      await sessionRef.set({
+        host: playerId,
+        status: 'lobby',
+        seed: currentSeed,
+        round: currentRound,
+        players: {
+          [playerId]: { name: playerName, joinedAt: firebase.database.ServerValue.TIMESTAMP }
+        }
+      });
+
+      // Update URL
+      const url = new URL(window.location);
+      url.searchParams.set('session', sessionId);
+      window.history.replaceState({}, '', url);
+
+      enterLobby();
+    }
+
+    // ---- Join Session ----
+    async function joinSession() {
+      playerName = document.getElementById('playerName').value.trim();
+      if (!playerName) {
+        document.getElementById('landingError').textContent = 'Please enter your name';
+        return;
+      }
+
+      const code = document.getElementById('joinCode').value.trim().toUpperCase();
+      if (!code) {
+        document.getElementById('landingError').textContent = 'Please enter a session code';
+        return;
+      }
+      document.getElementById('landingError').textContent = '';
+
+      // Check session exists
+      const snapshot = await db.ref('bingo-sessions/' + code).once('value');
+      if (!snapshot.exists()) {
+        document.getElementById('landingError').textContent = 'Session not found. Check the code and try again.';
+        return;
+      }
+
+      const data = snapshot.val();
+      if (data.status !== 'lobby') {
+        document.getElementById('landingError').textContent = 'Game already in progress. Wait for the next round.';
+        return;
+      }
+
+      sessionId = code;
+      playerId = generatePlayerId();
+      isHost = false;
+
+      await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
+        name: playerName,
+        joinedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      const url = new URL(window.location);
+      url.searchParams.set('session', sessionId);
+      window.history.replaceState({}, '', url);
+
+      enterLobby();
+    }
+
+    // ---- Lobby ----
+    function enterLobby() {
+      showScreen('lobby');
+      document.getElementById('lobbyCode').textContent = sessionId;
+
+      if (isHost) {
+        document.getElementById('lobbyHostControls').style.display = 'block';
+        document.getElementById('lobbyWaiting').style.display = 'none';
+      } else {
+        document.getElementById('lobbyHostControls').style.display = 'none';
+        document.getElementById('lobbyWaiting').style.display = 'block';
+      }
+
+      // Listen for players
+      const playersRef = db.ref('bingo-sessions/' + sessionId + '/players');
+      const playerListener = playersRef.on('value', (snap) => {
+        const players = snap.val() || {};
+        const list = document.getElementById('playerList');
+        list.innerHTML = '';
+        for (const [pid, pdata] of Object.entries(players)) {
+          const li = document.createElement('li');
+          li.textContent = pdata.name;
+          // Check if this player is the host
+          db.ref('bingo-sessions/' + sessionId + '/host').once('value').then(hostSnap => {
+            if (hostSnap.val() === pid) {
+              const badge = document.createElement('span');
+              badge.className = 'host-badge';
+              badge.textContent = 'HOST';
+              li.appendChild(badge);
+            }
+          });
+          list.appendChild(li);
+        }
+      });
+      listeners.push({ ref: playersRef, event: 'value', callback: playerListener });
+
+      // Listen for game start
+      const statusRef = db.ref('bingo-sessions/' + sessionId + '/status');
+      const statusListener = statusRef.on('value', (snap) => {
+        const status = snap.val();
+        if (status === 'playing') {
+          // Get seed and round
+          db.ref('bingo-sessions/' + sessionId).once('value').then(sSnap => {
+            const sData = sSnap.val();
+            currentSeed = sData.seed;
+            currentRound = sData.round || 1;
+            enterGame();
+          });
+        }
+      });
+      listeners.push({ ref: statusRef, event: 'value', callback: statusListener });
+    }
+
+    // ---- Start Game (host only) ----
+    async function startGame() {
+      if (!isHost) return;
+      await db.ref('bingo-sessions/' + sessionId).update({ status: 'playing' });
+    }
+
+    // ---- Game ----
+    function enterGame() {
+      // Clean up lobby listeners
+      cleanupListeners();
+      showScreen('game');
+
+      document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
+      markedCells = new Set();
+      markedCells.add(12); // FREE SPACE (center = index 12 in flat 25-cell grid)
+
+      cardWords = generateCard(currentSeed, playerId);
+      renderBoard();
+      checkForWin();
+
+      // Listen for winner
+      const winnerRef = db.ref('bingo-sessions/' + sessionId + '/winner');
+      const winnerListener = winnerRef.on('value', (snap) => {
+        if (snap.exists()) {
+          const w = snap.val();
+          showWinner(w.name, w.line, w.playerId === playerId);
+        }
+      });
+      listeners.push({ ref: winnerRef, event: 'value', callback: winnerListener });
+
+      // Listen for new round (seed/round change)
+      const roundRef = db.ref('bingo-sessions/' + sessionId + '/round');
+      const roundListener = roundRef.on('value', (snap) => {
+        const newRound = snap.val();
+        if (newRound && newRound > currentRound) {
+          db.ref('bingo-sessions/' + sessionId).once('value').then(sSnap => {
+            const sData = sSnap.val();
+            currentSeed = sData.seed;
+            currentRound = sData.round;
+            if (sData.status === 'playing') {
+              hideWinner();
+              markedCells = new Set();
+              markedCells.add(12);
+              cardWords = generateCard(currentSeed, playerId);
+              document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
+              renderBoard();
+              checkForWin();
+            }
+          });
+        }
+      });
+      listeners.push({ ref: roundRef, event: 'value', callback: roundListener });
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('bingoBoard');
+      board.innerHTML = '';
+
+      // Header row
+      const headers = ['B', 'I', 'N', 'G', 'O'];
+      headers.forEach(h => {
+        const cell = document.createElement('div');
+        cell.className = 'bingo-header';
+        cell.textContent = h;
+        board.appendChild(cell);
+      });
+
+      // Grid cells
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const idx = r * 5 + c;
+          const cell = document.createElement('div');
+          cell.className = 'bingo-cell';
+          cell.textContent = cardWords[r][c];
+          cell.dataset.index = idx;
+
+          if (idx === 12) {
+            cell.classList.add('free', 'marked');
+          } else {
+            if (markedCells.has(idx)) cell.classList.add('marked');
+            cell.addEventListener('click', () => toggleCell(idx, cell));
+          }
+
+          board.appendChild(cell);
+        }
+      }
+    }
+
+    function toggleCell(idx, cell) {
+      if (markedCells.has(idx)) {
+        markedCells.delete(idx);
+        cell.classList.remove('marked');
+      } else {
+        markedCells.add(idx);
+        cell.classList.add('marked');
+      }
+      checkForWin();
+    }
+
+    // ---- Win Detection ----
+    const WIN_LINES = [
+      // Rows
+      [0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14], [15, 16, 17, 18, 19], [20, 21, 22, 23, 24],
+      // Columns
+      [0, 5, 10, 15, 20], [1, 6, 11, 16, 21], [2, 7, 12, 17, 22], [3, 8, 13, 18, 23], [4, 9, 14, 19, 24],
+      // Diagonals
+      [0, 6, 12, 18, 24], [4, 8, 12, 16, 20]
+    ];
+
+    const LINE_LABELS = [
+      'Row 1', 'Row 2', 'Row 3', 'Row 4', 'Row 5',
+      'Column B', 'Column I', 'Column N', 'Column G', 'Column O',
+      'Diagonal ↘', 'Diagonal ↙'
+    ];
+
+    function getWinningLines() {
+      const winning = [];
+      for (let i = 0; i < WIN_LINES.length; i++) {
+        if (WIN_LINES[i].every(idx => markedCells.has(idx))) {
+          winning.push(i);
+        }
+      }
+      return winning;
+    }
+
+    function checkForWin() {
+      const btn = document.getElementById('bingoBtn');
+      const winning = getWinningLines();
+      if (winning.length > 0) {
+        btn.disabled = false;
+        btn.classList.add('ready');
+      } else {
+        btn.disabled = true;
+        btn.classList.remove('ready');
+      }
+    }
+
+    // ---- Declare BINGO ----
+    async function declareBingo() {
+      const winning = getWinningLines();
+      if (winning.length === 0) {
+        document.getElementById('gameError').textContent = 'No valid BINGO line detected!';
+        return;
+      }
+      document.getElementById('gameError').textContent = '';
+
+      const lineIdx = winning[0];
+      const lineLabel = LINE_LABELS[lineIdx];
+
+      // Use transaction to ensure only first winner
+      const winnerRef = db.ref('bingo-sessions/' + sessionId + '/winner');
+      const result = await winnerRef.transaction((current) => {
+        if (current === null) {
+          return {
+            playerId: playerId,
+            name: playerName,
+            line: lineLabel,
+            lineCells: WIN_LINES[lineIdx],
+            timestamp: Date.now()
+          };
+        }
+        return; // abort — someone already won
+      });
+
+      if (!result.committed) {
+        document.getElementById('gameError').textContent = 'Someone beat you to it!';
+      }
+    }
+
+    // ---- Winner Display ----
+    function showWinner(name, line, isMe) {
+      document.getElementById('winnerName').textContent = name + ' got BINGO!';
+      document.getElementById('winnerLine').textContent = line;
+      document.getElementById('winnerOverlay').classList.add('active');
+
+      // Highlight winning cells on the board if the winner data includes them
+      db.ref('bingo-sessions/' + sessionId + '/winner/lineCells').once('value').then(snap => {
+        const cells = snap.val();
+        if (cells) {
+          document.querySelectorAll('.bingo-cell').forEach(cell => {
+            if (cells.includes(parseInt(cell.dataset.index))) {
+              cell.classList.add('winning-cell');
+            }
+          });
+        }
+      });
+
+      // Controls
+      const controls = document.getElementById('winnerControls');
+      controls.innerHTML = '';
+      if (isHost) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary';
+        btn.textContent = 'Play Again';
+        btn.onclick = playAgain;
+        controls.appendChild(btn);
+      } else {
+        const msg = document.createElement('p');
+        msg.className = 'waiting-msg';
+        msg.textContent = 'Waiting for host to start next round...';
+        controls.appendChild(msg);
+      }
+
+      spawnConfetti();
+    }
+
+    function hideWinner() {
+      document.getElementById('winnerOverlay').classList.remove('active');
+      document.getElementById('confetti').innerHTML = '';
+      document.querySelectorAll('.bingo-cell.winning-cell').forEach(c => c.classList.remove('winning-cell'));
+    }
+
+    // ---- Play Again (host) ----
+    async function playAgain() {
+      if (!isHost) return;
+      const newSeed = Math.floor(Math.random() * 2147483647);
+      const newRound = currentRound + 1;
+      await db.ref('bingo-sessions/' + sessionId).update({
+        seed: newSeed,
+        round: newRound,
+        status: 'playing',
+        winner: null
+      });
+    }
+
+    // ---- Confetti ----
+    function spawnConfetti() {
+      const container = document.getElementById('confetti');
+      container.innerHTML = '';
+      const colors = ['#ffd700', '#ff4757', '#00d4aa', '#7c4dff', '#ff8c00', '#00bfff'];
+      for (let i = 0; i < 80; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.width = (6 + Math.random() * 8) + 'px';
+        piece.style.height = (6 + Math.random() * 8) + 'px';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        piece.style.animationDuration = (2 + Math.random() * 3) + 's';
+        piece.style.animationDelay = Math.random() * 2 + 's';
+        container.appendChild(piece);
+      }
+      // Clean up after animation
+      setTimeout(() => { container.innerHTML = ''; }, 6000);
+    }
+
+    // ---- Copy Session Link ----
+    function copySessionLink() {
+      const url = new URL(window.location);
+      url.searchParams.set('session', sessionId);
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        const btn = document.getElementById('copyLinkBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Invite Link'; }, 2000);
+      });
+    }
+
+    // ---- Cleanup Listeners ----
+    function cleanupListeners() {
+      listeners.forEach(({ ref, event, callback }) => ref.off(event, callback));
+      listeners = [];
+    }
+
+    // ---- Auto-join from URL ----
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('session');
+      if (code) {
+        document.getElementById('joinCode').value = code.toUpperCase();
+      }
+    });
+  </script>
+</body>
+
+</html>
