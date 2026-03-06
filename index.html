@@ -432,6 +432,218 @@
     }
 
     /* ============================================================
+     PLAYER PROGRESS PANEL
+     ============================================================ */
+    .progress-panel {
+      width: 100%;
+      max-width: 500px;
+      margin-top: 16px;
+    }
+
+    .progress-panel h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .progress-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .progress-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-cell);
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .progress-item .player-label {
+      flex: 1;
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .progress-item .player-label.is-you {
+      color: var(--accent);
+    }
+
+    .progress-bar-track {
+      width: 80px;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .progress-bar-fill.hot {
+      background: var(--gold);
+      animation: hot-pulse 0.8s infinite alternate;
+    }
+
+    @keyframes hot-pulse {
+      from { opacity: 0.8; }
+      to { opacity: 1; }
+    }
+
+    .progress-stat {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      min-width: 32px;
+      text-align: right;
+    }
+
+    /* ============================================================
+     WINNER MINI CARD (in progress panel)
+     ============================================================ */
+    .winner-mini-card-wrapper {
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .winner-mini-card-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--gold);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .winner-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      width: 100%;
+      max-width: 220px;
+    }
+
+    .winner-mini-header {
+      background: var(--border);
+      color: var(--accent);
+      font-size: 0.55rem;
+      font-weight: 800;
+      padding: 3px 0;
+      text-align: center;
+      border-radius: 2px;
+      letter-spacing: 1px;
+    }
+
+    .winner-mini-cell {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 3px 1px;
+      text-align: center;
+      font-size: 0.45rem;
+      line-height: 1.2;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      word-break: break-word;
+      color: var(--text-dim);
+    }
+
+    .winner-mini-cell.mini-free {
+      background: var(--bg-cell-marked);
+      color: var(--text-on-accent);
+      font-weight: 700;
+    }
+
+    .winner-mini-cell.mini-winning {
+      background: var(--gold);
+      color: #1a1a2e;
+      font-weight: 700;
+      border-color: var(--gold);
+      box-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+    }
+
+    .progress-item.winner-item {
+      flex-wrap: wrap;
+      border: 1px solid var(--gold);
+      background: rgba(255, 215, 0, 0.05);
+    }
+
+    /* ============================================================
+     END SESSION BUTTON
+     ============================================================ */
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      font-size: 0.8rem;
+      padding: 8px 20px;
+      margin-top: 20px;
+      opacity: 0.7;
+      transition: all 0.2s;
+    }
+
+    .btn-danger:hover {
+      opacity: 1;
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* ============================================================
+     SESSION ENDED OVERLAY
+     ============================================================ */
+    .ended-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(6px);
+    }
+
+    .ended-overlay.active {
+      display: flex;
+    }
+
+    .ended-card {
+      background: var(--bg-card);
+      border: 2px solid var(--danger);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .ended-card .ended-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    .ended-card .ended-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .ended-card .ended-msg {
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    /* ============================================================
      RESPONSIVE
      ============================================================ */
     @media (max-width: 480px) {
@@ -487,6 +699,7 @@
 
     <div id="lobbyHostControls" style="display:none;">
       <button class="btn btn-primary" onclick="startGame()" id="startGameBtn">Start Game</button>
+      <button class="btn btn-danger" onclick="endSession()">End Session</button>
     </div>
     <p class="waiting-msg" id="lobbyWaiting" style="display:none;">Waiting for host to start the game...</p>
   </div>
@@ -500,6 +713,13 @@
 
     <button class="btn btn-bingo" id="bingoBtn" disabled onclick="declareBingo()">BINGO!</button>
     <div id="gameError" class="error-msg"></div>
+
+    <div class="progress-panel">
+      <h3>Players</h3>
+      <ul class="progress-list" id="progressList"></ul>
+    </div>
+
+    <button class="btn btn-danger" id="endSessionGameBtn" style="display:none;" onclick="endSession()">End Session</button>
   </div>
 
   <!-- ====================== WINNER OVERLAY ====================== -->
@@ -513,6 +733,16 @@
   </div>
   <div class="confetti-container" id="confetti"></div>
 
+  <!-- ====================== SESSION ENDED OVERLAY ====================== -->
+  <div class="ended-overlay" id="endedOverlay">
+    <div class="ended-card">
+      <div class="ended-icon">👋</div>
+      <div class="ended-title">Session Ended</div>
+      <div class="ended-msg">The host has ended this session.</div>
+      <button class="btn btn-primary" onclick="returnToLanding()">Back to Home</button>
+    </div>
+  </div>
+
   <!-- ====================== APP LOGIC ====================== -->
   <script>
     // =============================================================
@@ -521,6 +751,7 @@
     const firebaseConfig = {
       apiKey: "AIzaSyB8UGPJfJY4cffA1uRs0PVgQMqdD4H-gr0",
       authDomain: "business-bingo-2564e.firebaseapp.com",
+      databaseURL: "https://business-bingo-2564e-default-rtdb.firebaseio.com",
       projectId: "business-bingo-2564e",
       storageBucket: "business-bingo-2564e.firebasestorage.app",
       messagingSenderId: "153447000397",
@@ -552,6 +783,8 @@
     let markedCells = new Set();
     let cardWords = [];
     let listeners = [];
+    let currentWinner = null;
+    let cachedPlayers = {};
 
     // ---- Master Buzzword List (50 words) ----
     const BUZZWORDS = [
@@ -634,11 +867,33 @@
       return 'p_' + Math.random().toString(36).substring(2, 10);
     }
 
+    // ---- Profanity Filter ----
+    const BLOCKED_WORDS = [
+      'ass','asshole','bastard','bitch','bollocks','cock','crap','cunt',
+      'damn','dick','douche','fag','faggot','fuck','fucker','fucking',
+      'goddamn','hell','homo','jerk','kike','milf','motherfucker',
+      'negro','nigga','nigger','piss','prick','pussy','retard','shit',
+      'slut','spic','tit','tits','twat','wanker','whore'
+    ];
+
+    function containsProfanity(name) {
+      const normalized = name.toLowerCase().replace(/[^a-z]/g, '');
+      return BLOCKED_WORDS.some(word => normalized.includes(word));
+    }
+
+    function validateName(name) {
+      if (!name) return 'Please enter your name';
+      if (name.length < 2) return 'Name must be at least 2 characters';
+      if (containsProfanity(name)) return 'Please choose an appropriate name';
+      return null;
+    }
+
     // ---- Create Session ----
     async function createSession() {
       playerName = document.getElementById('playerName').value.trim();
-      if (!playerName) {
-        document.getElementById('landingError').textContent = 'Please enter your name';
+      const nameError = validateName(playerName);
+      if (nameError) {
+        document.getElementById('landingError').textContent = nameError;
         return;
       }
       document.getElementById('landingError').textContent = '';
@@ -649,30 +904,36 @@
       currentSeed = Math.floor(Math.random() * 2147483647);
       currentRound = 1;
 
-      const sessionRef = db.ref('bingo-sessions/' + sessionId);
-      await sessionRef.set({
-        host: playerId,
-        status: 'lobby',
-        seed: currentSeed,
-        round: currentRound,
-        players: {
-          [playerId]: { name: playerName, joinedAt: firebase.database.ServerValue.TIMESTAMP }
-        }
-      });
+      try {
+        const sessionRef = db.ref('bingo-sessions/' + sessionId);
+        await sessionRef.set({
+          host: playerId,
+          status: 'lobby',
+          seed: currentSeed,
+          round: currentRound,
+          players: {
+            [playerId]: { name: playerName, joinedAt: firebase.database.ServerValue.TIMESTAMP }
+          }
+        });
 
-      // Update URL
-      const url = new URL(window.location);
-      url.searchParams.set('session', sessionId);
-      window.history.replaceState({}, '', url);
+        // Update URL
+        const url = new URL(window.location);
+        url.searchParams.set('session', sessionId);
+        window.history.replaceState({}, '', url);
 
-      enterLobby();
+        enterLobby();
+      } catch (err) {
+        document.getElementById('landingError').textContent = 'Connection failed: ' + err.message;
+        console.error('Create session error:', err);
+      }
     }
 
     // ---- Join Session ----
     async function joinSession() {
       playerName = document.getElementById('playerName').value.trim();
-      if (!playerName) {
-        document.getElementById('landingError').textContent = 'Please enter your name';
+      const nameError = validateName(playerName);
+      if (nameError) {
+        document.getElementById('landingError').textContent = nameError;
         return;
       }
 
@@ -748,7 +1009,7 @@
       });
       listeners.push({ ref: playersRef, event: 'value', callback: playerListener });
 
-      // Listen for game start
+      // Listen for game start or session end
       const statusRef = db.ref('bingo-sessions/' + sessionId + '/status');
       const statusListener = statusRef.on('value', (snap) => {
         const status = snap.val();
@@ -760,6 +1021,9 @@
             currentRound = sData.round || 1;
             enterGame();
           });
+        } else if (status === 'ended' && !isHost) {
+          cleanupListeners();
+          document.getElementById('endedOverlay').classList.add('active');
         }
       });
       listeners.push({ ref: statusRef, event: 'value', callback: statusListener });
@@ -777,6 +1041,9 @@
       cleanupListeners();
       showScreen('game');
 
+      // Show End Session button for host
+      document.getElementById('endSessionGameBtn').style.display = isHost ? 'inline-flex' : 'none';
+
       document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
       markedCells = new Set();
       markedCells.add(12); // FREE SPACE (center = index 12 in flat 25-cell grid)
@@ -784,16 +1051,41 @@
       cardWords = generateCard(currentSeed, playerId);
       renderBoard();
       checkForWin();
+      syncProgress();
+
+      // Listen for all players' progress
+      const playersRef = db.ref('bingo-sessions/' + sessionId + '/players');
+      const progressListener = playersRef.on('value', (snap) => {
+        cachedPlayers = snap.val() || {};
+        renderProgressPanel(cachedPlayers);
+      });
+      listeners.push({ ref: playersRef, event: 'value', callback: progressListener });
 
       // Listen for winner
       const winnerRef = db.ref('bingo-sessions/' + sessionId + '/winner');
       const winnerListener = winnerRef.on('value', (snap) => {
         if (snap.exists()) {
           const w = snap.val();
+          currentWinner = w;
           showWinner(w.name, w.line, w.playerId === playerId);
+          renderProgressPanel(cachedPlayers);
+        } else {
+          currentWinner = null;
         }
       });
       listeners.push({ ref: winnerRef, event: 'value', callback: winnerListener });
+
+      // Listen for session end during game
+      const statusRef = db.ref('bingo-sessions/' + sessionId + '/status');
+      const statusListener = statusRef.on('value', (snap) => {
+        const status = snap.val();
+        if (status === 'ended' && !isHost) {
+          cleanupListeners();
+          hideWinner();
+          document.getElementById('endedOverlay').classList.add('active');
+        }
+      });
+      listeners.push({ ref: statusRef, event: 'value', callback: statusListener });
 
       // Listen for new round (seed/round change)
       const roundRef = db.ref('bingo-sessions/' + sessionId + '/round');
@@ -812,6 +1104,7 @@
               document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
               renderBoard();
               checkForWin();
+              syncProgress();
             }
           });
         }
@@ -862,6 +1155,121 @@
         cell.classList.add('marked');
       }
       checkForWin();
+      syncProgress();
+    }
+
+    // ---- Sync progress to Firebase ----
+    function syncProgress() {
+      const best = getBestLineProgress(markedCells);
+      db.ref('bingo-sessions/' + sessionId + '/players/' + playerId + '/progress').set(best);
+    }
+
+    // Returns the max number of marked cells in any single winning line
+    function getBestLineProgress(marks) {
+      let best = 0;
+      for (const line of WIN_LINES) {
+        const count = line.filter(idx => marks.has(idx)).length;
+        if (count > best) best = count;
+      }
+      return best;
+    }
+
+    // ---- Render Progress Panel ----
+    function renderProgressPanel(players) {
+      const list = document.getElementById('progressList');
+      list.innerHTML = '';
+
+      // Sort: highest progress first, then alphabetically
+      const entries = Object.entries(players)
+        .map(([pid, data]) => ({ pid, name: data.name, progress: data.progress || 0 }))
+        .sort((a, b) => b.progress - a.progress || a.name.localeCompare(b.name));
+
+      for (const { pid, name, progress } of entries) {
+        const isWinner = currentWinner && currentWinner.playerId === pid;
+        const li = document.createElement('li');
+        li.className = 'progress-item' + (isWinner ? ' winner-item' : '');
+
+        const label = document.createElement('span');
+        label.className = 'player-label' + (pid === playerId ? ' is-you' : '');
+        label.textContent = name + (pid === playerId ? ' (you)' : '');
+
+        const track = document.createElement('div');
+        track.className = 'progress-bar-track';
+        const fill = document.createElement('div');
+        fill.className = 'progress-bar-fill' + (progress >= 4 ? ' hot' : '');
+        fill.style.width = (progress / 5 * 100) + '%';
+        track.appendChild(fill);
+
+        const stat = document.createElement('span');
+        stat.className = 'progress-stat';
+        if (isWinner) {
+          stat.textContent = 'WINNER!';
+          stat.style.color = 'var(--gold)';
+          stat.style.fontWeight = '700';
+        } else {
+          const remaining = 5 - progress;
+          stat.textContent = remaining === 0 ? 'BINGO!' : remaining + ' away';
+        }
+
+        li.appendChild(label);
+        li.appendChild(track);
+        li.appendChild(stat);
+
+        // Show the winner's mini card with winning line highlighted
+        if (isWinner) {
+          const miniCard = buildWinnerMiniCard(pid, currentWinner.lineCells || []);
+          li.appendChild(miniCard);
+        }
+
+        list.appendChild(li);
+      }
+    }
+
+    // ---- Build Mini Card for Winner ----
+    function buildWinnerMiniCard(winnerPid, winningCells) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'winner-mini-card-wrapper';
+
+      const label = document.createElement('div');
+      label.className = 'winner-mini-card-label';
+      label.textContent = 'Winning Card — ' + (currentWinner ? currentWinner.line : '');
+      wrapper.appendChild(label);
+
+      const grid = document.createElement('div');
+      grid.className = 'winner-mini-grid';
+
+      // Header row
+      ['B', 'I', 'N', 'G', 'O'].forEach(h => {
+        const hCell = document.createElement('div');
+        hCell.className = 'winner-mini-header';
+        hCell.textContent = h;
+        grid.appendChild(hCell);
+      });
+
+      // Reconstruct the winner's card deterministically
+      const winnerCard = generateCard(currentSeed, winnerPid);
+      const winningSet = new Set(winningCells);
+
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          const idx = r * 5 + c;
+          const cell = document.createElement('div');
+          cell.className = 'winner-mini-cell';
+          cell.textContent = winnerCard[r][c];
+
+          if (idx === 12) {
+            cell.classList.add('mini-free');
+          }
+          if (winningSet.has(idx)) {
+            cell.classList.add('mini-winning');
+          }
+
+          grid.appendChild(cell);
+        }
+      }
+
+      wrapper.appendChild(grid);
+      return wrapper;
     }
 
     // ---- Win Detection ----
@@ -975,6 +1383,8 @@
       document.getElementById('winnerOverlay').classList.remove('active');
       document.getElementById('confetti').innerHTML = '';
       document.querySelectorAll('.bingo-cell.winning-cell').forEach(c => c.classList.remove('winning-cell'));
+      currentWinner = null;
+      renderProgressPanel(cachedPlayers);
     }
 
     // ---- Play Again (host) ----
@@ -988,6 +1398,51 @@
         status: 'playing',
         winner: null
       });
+    }
+
+    // ---- End Session (host only) ----
+    async function endSession() {
+      if (!isHost) return;
+      if (!confirm('End this session for all players?')) return;
+      await db.ref('bingo-sessions/' + sessionId).update({ status: 'ended' });
+      // Delete session data after a short delay so listeners can fire
+      setTimeout(() => {
+        db.ref('bingo-sessions/' + sessionId).remove();
+      }, 3000);
+      cleanupListeners();
+      resetLocalState();
+      showScreen('landing');
+    }
+
+    function returnToLanding() {
+      document.getElementById('endedOverlay').classList.remove('active');
+      cleanupListeners();
+      resetLocalState();
+      showScreen('landing');
+    }
+
+    function resetLocalState() {
+      sessionId = null;
+      playerId = null;
+      playerName = '';
+      isHost = false;
+      currentSeed = 0;
+      currentRound = 1;
+      markedCells = new Set();
+      cardWords = [];
+      currentWinner = null;
+      cachedPlayers = {};
+      // Clear URL params
+      const url = new URL(window.location);
+      url.searchParams.delete('session');
+      window.history.replaceState({}, '', url);
+      // Reset form fields
+      document.getElementById('playerName').value = '';
+      document.getElementById('joinCode').value = '';
+      document.getElementById('landingError').textContent = '';
+      // Hide winner overlay if open
+      document.getElementById('winnerOverlay').classList.remove('active');
+      document.getElementById('confetti').innerHTML = '';
     }
 
     // ---- Confetti ----
