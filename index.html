@@ -84,7 +84,7 @@
     }
 
     #game.active {
-      max-width: 900px;
+      max-width: 1000px;
     }
 
     /* ============================================================
@@ -332,7 +332,7 @@
     }
 
     .game-board-col {
-      flex: 1;
+      flex: 0 1 500px;
       min-width: 0;
       display: flex;
       flex-direction: column;
@@ -340,11 +340,13 @@
     }
 
     .game-sidebar {
-      width: 220px;
+      width: 240px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: sticky;
+      top: 20px;
     }
 
     .game-sidebar .progress-panel {
@@ -352,7 +354,7 @@
       width: 100%;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 560px) {
       .game-layout {
         flex-direction: column;
         align-items: center;
@@ -361,6 +363,7 @@
       .game-sidebar {
         width: 100%;
         max-width: 500px;
+        position: static;
       }
     }
 
@@ -808,7 +811,7 @@
 
       <div class="game-sidebar">
         <div class="progress-panel">
-          <h3>Players</h3>
+          <h3>Live Feed</h3>
           <ul class="progress-list" id="progressList"></ul>
         </div>
         <button class="btn btn-danger" id="endSessionGameBtn" style="display:none;" onclick="endSession()">End Session</button>
@@ -1341,7 +1344,7 @@
           stat.style.fontWeight = '700';
         } else {
           const remaining = 5 - progress;
-          stat.textContent = remaining === 0 ? 'BINGO!' : remaining + ' away';
+          stat.textContent = remaining === 0 ? 'BINGO!' : remaining + (remaining === 1 ? ' sq away' : ' sq away');
         }
 
         li.appendChild(label);
