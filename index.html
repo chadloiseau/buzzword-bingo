@@ -765,6 +765,41 @@
     /* ============================================================
      RESPONSIVE
      ============================================================ */
+    /* ============================================================
+     ACCESSIBILITY
+     ============================================================ */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .bingo-cell:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+      background: var(--bg-cell-hover);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px var(--accent-glow);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ============================================================
+     RESPONSIVE
+     ============================================================ */
     @media (max-width: 480px) {
       .bingo-board {
         gap: 3px;
@@ -793,8 +828,8 @@
       <p style="color: var(--accent); font-weight: 600; font-size: 1.1rem;" id="inviteHostMsg"></p>
     </div>
 
-    <input type="text" id="playerName" placeholder="Your name" maxlength="20" autocomplete="off">
-    <div id="landingError" class="error-msg"></div>
+    <input type="text" id="playerName" placeholder="Your name" maxlength="20" autocomplete="off" aria-label="Your name">
+    <div id="landingError" class="error-msg" role="alert" aria-live="polite"></div>
 
     <div id="createSection">
       <div class="btn-group" style="margin-top: 12px;">
@@ -805,7 +840,7 @@
     </div>
 
     <input type="text" id="joinCode" placeholder="Session code" maxlength="6" autocomplete="off"
-      style="text-transform: uppercase;">
+      style="text-transform: uppercase;" aria-label="Session code">
     <div class="btn-group">
       <button class="btn btn-secondary" id="joinBtn" onclick="joinSession()" data-needs-auth disabled>Join Session</button>
     </div>
@@ -814,19 +849,19 @@
   <!-- ====================== GAME SCREEN ====================== -->
   <div id="game" class="screen">
     <h1>Buzzword Bingo</h1>
-    <p class="round-info" id="roundInfo">Round 1</p>
+    <p class="round-info" id="roundInfo" role="status" aria-live="polite">Round 1</p>
 
     <div class="game-layout">
       <div class="game-board-col">
-        <div class="bingo-board" id="bingoBoard"></div>
+        <div class="bingo-board" id="bingoBoard" role="grid" aria-label="Bingo card"></div>
         <button class="btn btn-bingo" id="bingoBtn" disabled onclick="declareBingo()">BINGO!</button>
-        <div id="gameError" class="error-msg"></div>
+        <div id="gameError" class="error-msg" role="alert" aria-live="polite"></div>
       </div>
 
       <div class="game-sidebar">
         <div class="progress-panel">
           <h3>Live Feed</h3>
-          <ul class="progress-list" id="progressList"></ul>
+          <ul class="progress-list" id="progressList" aria-live="polite" aria-label="Player progress"></ul>
         </div>
         <button class="btn btn-danger" id="endSessionGameBtn" style="display:none;" onclick="endSession()">End Session</button>
       </div>
@@ -834,9 +869,9 @@
   </div>
 
   <!-- ====================== WINNER OVERLAY ====================== -->
-  <div class="overlay" id="winnerOverlay">
+  <div class="overlay" id="winnerOverlay" role="dialog" aria-modal="true" aria-labelledby="winnerName">
     <div class="winner-card">
-      <div class="trophy">🏆</div>
+      <div class="trophy" aria-hidden="true">🏆</div>
       <div class="winner-name" id="winnerName"></div>
       <div class="winner-line" id="winnerLine"></div>
       <div id="winnerControls"></div>
@@ -845,9 +880,9 @@
   <div class="confetti-container" id="confetti"></div>
 
   <!-- ====================== LOBBY OVERLAY (over game screen) ====================== -->
-  <div class="lobby-overlay" id="lobbyOverlay">
+  <div class="lobby-overlay" id="lobbyOverlay" role="dialog" aria-modal="true" aria-labelledby="lobbyHeading">
     <div class="lobby-panel">
-      <h2>Share this code with your friends</h2>
+      <h2 id="lobbyHeading">Share this code with your friends</h2>
       <div class="session-code-display" id="lobbyCode"></div>
       <button class="btn btn-secondary" onclick="copySessionLink()" id="copyLinkBtn" style="margin-bottom:8px;">Copy Invite Link</button>
       <ul class="player-list" id="playerList"></ul>
@@ -862,10 +897,10 @@
   </div>
 
   <!-- ====================== SESSION ENDED OVERLAY ====================== -->
-  <div class="ended-overlay" id="endedOverlay">
+  <div class="ended-overlay" id="endedOverlay" role="dialog" aria-modal="true" aria-labelledby="endedTitle">
     <div class="ended-card">
-      <div class="ended-icon">👋</div>
-      <div class="ended-title">Session Ended</div>
+      <div class="ended-icon" aria-hidden="true">👋</div>
+      <div class="ended-title" id="endedTitle">Session Ended</div>
       <div class="ended-msg">The host has ended this session.</div>
       <button class="btn btn-primary" onclick="returnToLanding()">Back to Home</button>
     </div>
@@ -1122,7 +1157,8 @@
           host: playerId,
           status: 'lobby',
           seed: currentSeed,
-          round: currentRound
+          round: currentRound,
+          createdAt: firebase.database.ServerValue.TIMESTAMP
         });
         // Write player data separately (rules check $playerId === auth.uid)
         await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
@@ -1195,6 +1231,14 @@
         }
 
         const data = snapshot.val();
+
+        // Check if session is expired (older than 24 hours)
+        const SESSION_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+        if (data.createdAt && (Date.now() - data.createdAt > SESSION_MAX_AGE)) {
+          document.getElementById('landingError').textContent = 'This session has expired. Please create a new one.';
+          return;
+        }
+
         if (data.status !== 'lobby') {
           document.getElementById('landingError').textContent = 'Game already in progress. Wait for the next round.';
           return;
@@ -1429,9 +1473,21 @@
 
           if (idx === 12) {
             cell.classList.add('free', 'marked');
+            cell.setAttribute('aria-label', 'Free space, marked');
           } else {
-            if (markedCells.has(idx)) cell.classList.add('marked');
+            cell.tabIndex = 0;
+            cell.setAttribute('role', 'switch');
+            const isMarked = markedCells.has(idx);
+            if (isMarked) cell.classList.add('marked');
+            cell.setAttribute('aria-checked', isMarked ? 'true' : 'false');
+            cell.setAttribute('aria-label', cardWords[r][c] + (isMarked ? ', marked' : ''));
             cell.addEventListener('click', () => toggleCell(idx, cell));
+            cell.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleCell(idx, cell);
+              }
+            });
           }
 
           board.appendChild(cell);
@@ -1443,9 +1499,13 @@
       if (markedCells.has(idx)) {
         markedCells.delete(idx);
         cell.classList.remove('marked');
+        cell.setAttribute('aria-checked', 'false');
+        cell.setAttribute('aria-label', cell.textContent);
       } else {
         markedCells.add(idx);
         cell.classList.add('marked');
+        cell.setAttribute('aria-checked', 'true');
+        cell.setAttribute('aria-label', cell.textContent + ', marked');
       }
       checkForWin();
       syncProgress();
@@ -1818,6 +1878,20 @@
       listeners.forEach(({ ref, event, callback }) => ref.off(event, callback));
       listeners = [];
     }
+
+    // ---- Keyboard Accessibility ----
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Close winner overlay (anyone can dismiss their view)
+        if (document.getElementById('winnerOverlay').classList.contains('active')) {
+          document.getElementById('winnerOverlay').classList.remove('active');
+        }
+        // Close ended overlay → return to landing
+        if (document.getElementById('endedOverlay').classList.contains('active')) {
+          returnToLanding();
+        }
+      }
+    });
 
     // ---- Auto-join from URL ----
     window.addEventListener('DOMContentLoaded', () => {

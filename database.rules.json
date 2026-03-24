@@ -2,8 +2,13 @@
   "rules": {
     "bingo-sessions": {
       "$sessionId": {
-        ".read": "auth != null",
+        ".read": "auth != null && (!data.child('createdAt').exists() || data.child('createdAt').val() > (now - 86400000))",
         ".write": "auth != null && (!data.exists() || (data.child('host').val() === auth.uid && !newData.exists()))",
+
+        "createdAt": {
+          ".write": "auth != null && !data.exists()",
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
 
         "host": {
           ".write": "auth != null && !data.exists()",
