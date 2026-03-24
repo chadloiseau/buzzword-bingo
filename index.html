@@ -9,6 +9,7 @@
   <!-- Firebase SDK (compat mode for simplicity) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
   <style>
     /* ============================================================
@@ -85,6 +86,7 @@
 
     #game.active {
       max-width: 1000px;
+      justify-content: flex-start;
     }
 
     /* ============================================================
@@ -781,19 +783,25 @@
     <h1>Buzzword Bingo</h1>
     <p class="subtitle">Real-time multiplayer business buzzword bingo</p>
 
+    <div id="inviteInfo" style="display:none; margin-bottom: 16px;">
+      <p style="color: var(--accent); font-weight: 600; font-size: 1.1rem;" id="inviteHostMsg"></p>
+    </div>
+
     <input type="text" id="playerName" placeholder="Your name" maxlength="20" autocomplete="off">
     <div id="landingError" class="error-msg"></div>
 
-    <div class="btn-group" style="margin-top: 12px;">
-      <button class="btn btn-primary" onclick="createSession()">Create Session</button>
-    </div>
+    <div id="createSection">
+      <div class="btn-group" style="margin-top: 12px;">
+        <button class="btn btn-primary" onclick="createSession()" data-needs-auth disabled>Create Session</button>
+      </div>
 
-    <div class="or-divider">— or join an existing game —</div>
+      <div class="or-divider">— or join an existing game —</div>
+    </div>
 
     <input type="text" id="joinCode" placeholder="Session code" maxlength="6" autocomplete="off"
       style="text-transform: uppercase;">
     <div class="btn-group">
-      <button class="btn btn-secondary" onclick="joinSession()">Join Session</button>
+      <button class="btn btn-secondary" id="joinBtn" onclick="joinSession()" data-needs-auth disabled>Join Session</button>
     </div>
   </div>
 
@@ -873,19 +881,33 @@
       measurementId: "G-P297WL83R3"
     };
     // =============================================================
-    // Firebase RTDB Rules (set in Firebase Console):
-    // {
-    //   "rules": {
-    //     "bingo-sessions": {
-    //       ".read": true,
-    //       ".write": true
-    //     }
-    //   }
-    // }
+    // Firebase RTDB Rules: see database.rules.json
+    // Requires Anonymous Auth enabled in Firebase Console.
+    // Deploy rules via: firebase deploy --only database
     // =============================================================
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
+
+    // ---- Anonymous Auth ----
+    let authReady = false;
+
+    auth.signInAnonymously().catch(err => {
+      console.error('Anonymous auth failed:', err);
+      document.getElementById('landingError').textContent = 'Connection failed. Please refresh.';
+    });
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        playerId = user.uid;
+        authReady = true;
+        // Enable UI buttons that were disabled pending auth
+        document.querySelectorAll('[data-needs-auth]').forEach(btn => {
+          btn.disabled = false;
+        });
+      }
+    });
 
     // ---- State ----
     let sessionId = null;
@@ -899,6 +921,7 @@
     let listeners = [];
     let currentWinner = null;
     let cachedPlayers = {};
+    let gameActive = false;
 
     // ---- Master Buzzword List (50 words) ----
     const BUZZWORDS = [
@@ -910,8 +933,12 @@
       "Touch Base", "Action Items", "Optics", "Guardrails", "Buy-In",
       "Stakeholder", "Bleeding Edge", "Game Changer", "Best Practice", "Ideate",
       "Circle the Wagons", "Table Stakes", "Cadence", "Headwinds", "Tailwinds",
-      "Ducks in a Row", "Open the Kimono", "Solutioning", "Rightsizing", "Core Competency",
-      "Swim Lane", "Hard Stop", "Lean In", "End of the Day", "Bio Break"
+      "Ducks in a Row", "Solutioning", "Rightsizing", "Core Competency",
+      "Swim Lane", "Hard Stop", "Lean In", "End of the Day", "Bio Break",
+      "NPS", "Core KPIs", "Executive Leadership Team", "Empower", "Deck",
+      "Market Insights", "LTO/RTO", "Asset", "Touch Points", "Agreement",
+      "Smarter, Not Harder", "Customer Value", "Growth Org", "Pod Team/Pod Structure",
+      "Innovation"
     ];
 
     // ---- Seeded PRNG (mulberry32) ----
@@ -977,10 +1004,6 @@
       return code;
     }
 
-    function generatePlayerId() {
-      return 'p_' + Math.random().toString(36).substring(2, 10);
-    }
-
     // ---- Profanity Filter ----
     const BLOCKED_WORDS = [
       'ass','asshole','bastard','bitch','bollocks','cock','crap','cunt',
@@ -1004,6 +1027,11 @@
 
     // ---- Create Session ----
     async function createSession() {
+      if (!authReady) {
+        document.getElementById('landingError').textContent = 'Still connecting. Please wait.';
+        return;
+      }
+
       playerName = document.getElementById('playerName').value.trim();
       const nameError = validateName(playerName);
       if (nameError) {
@@ -1013,21 +1041,23 @@
       document.getElementById('landingError').textContent = '';
 
       sessionId = generateSessionCode();
-      playerId = generatePlayerId();
       isHost = true;
       currentSeed = Math.floor(Math.random() * 2147483647);
       currentRound = 1;
 
       try {
+        // Use update() so Firebase evaluates write rules at each child path
         const sessionRef = db.ref('bingo-sessions/' + sessionId);
-        await sessionRef.set({
+        await sessionRef.update({
           host: playerId,
           status: 'lobby',
           seed: currentSeed,
-          round: currentRound,
-          players: {
-            [playerId]: { name: playerName, joinedAt: firebase.database.ServerValue.TIMESTAMP }
-          }
+          round: currentRound
+        });
+        // Write player data separately (rules check $playerId === auth.uid)
+        await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
+          name: playerName,
+          joinedAt: firebase.database.ServerValue.TIMESTAMP
         });
 
         // Update URL
@@ -1044,6 +1074,11 @@
 
     // ---- Join Session ----
     async function joinSession() {
+      if (!authReady) {
+        document.getElementById('landingError').textContent = 'Still connecting. Please wait.';
+        return;
+      }
+
       playerName = document.getElementById('playerName').value.trim();
       const nameError = validateName(playerName);
       if (nameError) {
@@ -1072,7 +1107,6 @@
       }
 
       sessionId = code;
-      playerId = generatePlayerId();
       isHost = false;
 
       await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
@@ -1150,6 +1184,10 @@
             currentSeed = sData.seed;
             currentRound = sData.round || 1;
             enterGame();
+          }).catch(err => {
+            console.error('Failed to load game data:', err);
+            document.getElementById('lobbyOverlay').classList.remove('active');
+            document.getElementById('gameError').textContent = 'Failed to start game. Please refresh.';
           });
         } else if (status === 'ended' && !isHost) {
           cleanupListeners();
@@ -1168,6 +1206,9 @@
 
     // ---- Game ----
     function enterGame() {
+      if (gameActive) return;
+      gameActive = true;
+
       // Clean up lobby listeners
       cleanupListeners();
 
@@ -1528,6 +1569,8 @@
       if (!isHost) return;
       const newSeed = Math.floor(Math.random() * 2147483647);
       const newRound = currentRound + 1;
+
+      // Each client resets their own progress via the round listener
       await db.ref('bingo-sessions/' + sessionId).update({
         seed: newSeed,
         round: newRound,
@@ -1541,9 +1584,11 @@
       if (!isHost) return;
       if (!confirm('End this session for all players?')) return;
       await db.ref('bingo-sessions/' + sessionId).update({ status: 'ended' });
+      // Capture sessionId before resetLocalState nulls it
+      const sid = sessionId;
       // Delete session data after a short delay so listeners can fire
       setTimeout(() => {
-        db.ref('bingo-sessions/' + sessionId).remove();
+        db.ref('bingo-sessions/' + sid).remove();
       }, 3000);
       cleanupListeners();
       resetLocalState();
@@ -1559,7 +1604,7 @@
 
     function resetLocalState() {
       sessionId = null;
-      playerId = null;
+      // playerId persists from Firebase Auth — don't reset
       playerName = '';
       isHost = false;
       currentSeed = 0;
@@ -1568,6 +1613,7 @@
       cardWords = [];
       currentWinner = null;
       cachedPlayers = {};
+      gameActive = false;
       // Clear URL params
       const url = new URL(window.location);
       url.searchParams.delete('session');
@@ -1628,7 +1674,28 @@
       const params = new URLSearchParams(window.location.search);
       const code = params.get('session');
       if (code) {
-        document.getElementById('joinCode').value = code.toUpperCase();
+        const upperCode = code.toUpperCase();
+        document.getElementById('joinCode').value = upperCode;
+        document.getElementById('joinCode').readOnly = true;
+        document.getElementById('joinCode').style.opacity = '0.6';
+        document.getElementById('createSection').style.display = 'none';
+        document.getElementById('joinBtn').classList.remove('btn-secondary');
+        document.getElementById('joinBtn').classList.add('btn-primary');
+
+        // Look up host name after auth is ready (rules require auth)
+        const unsubAutoJoin = auth.onAuthStateChanged(user => {
+          if (!user) return;
+          db.ref('bingo-sessions/' + upperCode).once('value').then(snap => {
+            if (snap.exists()) {
+              const data = snap.val();
+              const hostId = data.host;
+              const hostName = data.players && data.players[hostId] ? data.players[hostId].name : 'Unknown';
+              document.getElementById('inviteHostMsg').textContent = 'Hosted by ' + hostName;
+              document.getElementById('inviteInfo').style.display = 'block';
+            }
+          });
+          unsubAutoJoin();
+        });
       }
     });
   </script>

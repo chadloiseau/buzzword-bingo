@@ -1,8 +1,54 @@
 {
-    "rules": {
-        "bingo-sessions": {
-            ".read": true,
-            ".write": true
+  "rules": {
+    "bingo-sessions": {
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null && data.exists() && data.child('host').val() === auth.uid && !newData.exists()",
+
+        "host": {
+          ".write": "auth != null && !data.exists()",
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+
+        "status": {
+          ".write": "auth != null && (!data.parent().child('host').exists() || data.parent().child('host').val() === auth.uid)",
+          ".validate": "newData.isString() && (newData.val() === 'lobby' || newData.val() === 'playing' || newData.val() === 'ended')"
+        },
+
+        "seed": {
+          ".write": "auth != null && (!data.parent().child('host').exists() || data.parent().child('host').val() === auth.uid)",
+          ".validate": "newData.isNumber()"
+        },
+
+        "round": {
+          ".write": "auth != null && (!data.parent().child('host').exists() || data.parent().child('host').val() === auth.uid)",
+          ".validate": "newData.isNumber() && newData.val() >= 1"
+        },
+
+        "winner": {
+          ".write": "auth != null && (!data.exists() || (data.parent().child('host').val() === auth.uid && newData.val() === null))",
+          ".validate": "newData.hasChildren(['playerId', 'name', 'line', 'lineCells', 'timestamp'])"
+        },
+
+        "players": {
+          "$playerId": {
+            ".write": "auth != null && $playerId === auth.uid",
+            ".validate": "newData.hasChild('name')",
+
+            "name": {
+              ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 20"
+            },
+
+            "joinedAt": {
+              ".validate": "newData.val() <= now"
+            },
+
+            "progress": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+            }
+          }
         }
+      }
     }
+  }
 }
