@@ -6,10 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Business Buzzword Bingo</title>
 
-  <!-- Firebase SDK (compat mode for simplicity) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <!-- Firebase SDK v11.2.0 (compat mode for simplicity) -->
+  <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-app-compat.js"
+          integrity="sha384-1a+BUO0IyNTO0rRUIhCCwZaScQaSqkA7x+40BpWoot07z9sjBe8FT4txON6LJ2uL"
+          crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-database-compat.js"
+          integrity="sha384-eLLgngzcC53VopBLZJxNsyOSpSZSRC2qZeKB9VaqCDdrVK69MkPcA9lSwQ4ht5un"
+          crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.2.0/firebase-auth-compat.js"
+          integrity="sha384-iVL1YxVOJVzSsptAXTdf8ZZzuiwlZnJuukellgCT7vImgrfWkRqUcYhRz+yUkP84"
+          crossorigin="anonymous"></script>
 
   <style>
     /* ============================================================
@@ -895,7 +901,7 @@
 
     auth.signInAnonymously().catch(err => {
       console.error('Anonymous auth failed:', err);
-      document.getElementById('landingError').textContent = 'Connection failed. Please refresh.';
+      document.getElementById('landingError').textContent = getUserFriendlyError(err);
     });
 
     auth.onAuthStateChanged(user => {
@@ -922,6 +928,51 @@
     let currentWinner = null;
     let cachedPlayers = {};
     let gameActive = false;
+
+    // ---- Rate Limiting ----
+    let lastSessionCreateTime = 0;
+    let lastSessionJoinTime = 0;
+    const SESSION_ACTION_COOLDOWN = 3000; // 3 seconds
+
+    // ---- Error Message Mapper ----
+    function getUserFriendlyError(error) {
+      if (!error) return 'An unexpected error occurred. Please try again.';
+
+      const errorMessage = error.message || error.toString();
+      const errorCode = error.code || '';
+
+      // Map Firebase errors to user-friendly messages
+      const errorMap = {
+        'PERMISSION_DENIED': 'Unable to connect to the game. Please refresh the page and try again.',
+        'permission-denied': 'Unable to connect to the game. Please refresh the page and try again.',
+        'NETWORK_ERROR': 'Network connection lost. Please check your internet and try again.',
+        'network-request-failed': 'Network connection lost. Please check your internet and try again.',
+        'disconnected': 'Connection to game server lost. Please refresh the page.',
+        'unavailable': 'Game server is temporarily unavailable. Please try again in a moment.',
+        'cancelled': 'Operation was cancelled. Please try again.',
+        'deadline-exceeded': 'Request timed out. Please check your connection and try again.',
+        'invalid-argument': 'Invalid request. Please refresh the page and try again.',
+        'not-found': 'Session not found. Please check the code and try again.',
+        'already-exists': 'Session already exists. Please try a different code.',
+        'unauthenticated': 'Authentication failed. Please refresh the page.',
+        'auth/network-request-failed': 'Network connection lost. Please check your internet and try again.'
+      };
+
+      // Check error code first
+      if (errorCode && errorMap[errorCode]) {
+        return errorMap[errorCode];
+      }
+
+      // Check error message for known patterns
+      for (const [key, value] of Object.entries(errorMap)) {
+        if (errorMessage.toLowerCase().includes(key.toLowerCase())) {
+          return value;
+        }
+      }
+
+      // Default fallback
+      return 'Something went wrong. Please try again.';
+    }
 
     // ---- Master Buzzword List (50 words) ----
     const BUZZWORDS = [
@@ -999,8 +1050,12 @@
     // ---- Generate Session Code ----
     function generateSessionCode() {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+      const array = new Uint32Array(5);
+      crypto.getRandomValues(array);
       let code = '';
-      for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      for (let i = 0; i < 5; i++) {
+        code += chars[array[i] % chars.length];
+      }
       return code;
     }
 
@@ -1032,6 +1087,15 @@
         return;
       }
 
+      // Rate limiting check
+      const now = Date.now();
+      if (now - lastSessionCreateTime < SESSION_ACTION_COOLDOWN) {
+        const remainingSeconds = Math.ceil((SESSION_ACTION_COOLDOWN - (now - lastSessionCreateTime)) / 1000);
+        document.getElementById('landingError').textContent = `Please wait ${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''} before creating another session.`;
+        return;
+      }
+      lastSessionCreateTime = now;
+
       playerName = document.getElementById('playerName').value.trim();
       const nameError = validateName(playerName);
       if (nameError) {
@@ -1039,6 +1103,12 @@
         return;
       }
       document.getElementById('landingError').textContent = '';
+
+      // Loading state
+      const createBtn = document.querySelector('[onclick="createSession()"]');
+      const originalText = createBtn.textContent;
+      createBtn.disabled = true;
+      createBtn.textContent = 'Creating...';
 
       sessionId = generateSessionCode();
       isHost = true;
@@ -1067,8 +1137,12 @@
 
         enterLobby();
       } catch (err) {
-        document.getElementById('landingError').textContent = 'Connection failed: ' + err.message;
+        document.getElementById('landingError').textContent = getUserFriendlyError(err);
         console.error('Create session error:', err);
+      } finally {
+        // Restore button state
+        createBtn.disabled = false;
+        createBtn.textContent = originalText;
       }
     }
 
@@ -1078,6 +1152,15 @@
         document.getElementById('landingError').textContent = 'Still connecting. Please wait.';
         return;
       }
+
+      // Rate limiting check
+      const now = Date.now();
+      if (now - lastSessionJoinTime < SESSION_ACTION_COOLDOWN) {
+        const remainingSeconds = Math.ceil((SESSION_ACTION_COOLDOWN - (now - lastSessionJoinTime)) / 1000);
+        document.getElementById('landingError').textContent = `Please wait ${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''} before joining another session.`;
+        return;
+      }
+      lastSessionJoinTime = now;
 
       playerName = document.getElementById('playerName').value.trim();
       const nameError = validateName(playerName);
@@ -1091,34 +1174,53 @@
         document.getElementById('landingError').textContent = 'Please enter a session code';
         return;
       }
+      if (code.length !== 5) {
+        document.getElementById('landingError').textContent = 'Session code must be exactly 5 characters';
+        return;
+      }
       document.getElementById('landingError').textContent = '';
 
-      // Check session exists
-      const snapshot = await db.ref('bingo-sessions/' + code).once('value');
-      if (!snapshot.exists()) {
-        document.getElementById('landingError').textContent = 'Session not found. Check the code and try again.';
-        return;
+      // Loading state
+      const joinBtn = document.getElementById('joinBtn');
+      const originalText = joinBtn.textContent;
+      joinBtn.disabled = true;
+      joinBtn.textContent = 'Joining...';
+
+      try {
+        // Check session exists
+        const snapshot = await db.ref('bingo-sessions/' + code).once('value');
+        if (!snapshot.exists()) {
+          document.getElementById('landingError').textContent = 'Session not found. Check the code and try again.';
+          return;
+        }
+
+        const data = snapshot.val();
+        if (data.status !== 'lobby') {
+          document.getElementById('landingError').textContent = 'Game already in progress. Wait for the next round.';
+          return;
+        }
+
+        sessionId = code;
+        isHost = false;
+
+        await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
+          name: playerName,
+          joinedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        const url = new URL(window.location);
+        url.searchParams.set('session', sessionId);
+        window.history.replaceState({}, '', url);
+
+        enterLobby();
+      } catch (err) {
+        document.getElementById('landingError').textContent = getUserFriendlyError(err);
+        console.error('Join session error:', err);
+      } finally {
+        // Restore button state
+        joinBtn.disabled = false;
+        joinBtn.textContent = originalText;
       }
-
-      const data = snapshot.val();
-      if (data.status !== 'lobby') {
-        document.getElementById('landingError').textContent = 'Game already in progress. Wait for the next round.';
-        return;
-      }
-
-      sessionId = code;
-      isHost = false;
-
-      await db.ref('bingo-sessions/' + sessionId + '/players/' + playerId).set({
-        name: playerName,
-        joinedAt: firebase.database.ServerValue.TIMESTAMP
-      });
-
-      const url = new URL(window.location);
-      url.searchParams.set('session', sessionId);
-      window.history.replaceState({}, '', url);
-
-      enterLobby();
     }
 
     // ---- Lobby (shows game screen with card preview + lobby overlay) ----
@@ -1201,7 +1303,21 @@
     // ---- Start Game (host only) ----
     async function startGame() {
       if (!isHost) return;
-      await db.ref('bingo-sessions/' + sessionId).update({ status: 'playing' });
+
+      // Loading state
+      const startBtn = document.getElementById('startGameBtn');
+      const originalText = startBtn.textContent;
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting...';
+
+      try {
+        await db.ref('bingo-sessions/' + sessionId).update({ status: 'playing' });
+      } catch (err) {
+        console.error('Start game error:', err);
+        startBtn.disabled = false;
+        startBtn.textContent = originalText;
+      }
+      // Note: Button will be hidden when game starts, so no finally block needed
     }
 
     // ---- Game ----
@@ -1496,26 +1612,42 @@
       }
       document.getElementById('gameError').textContent = '';
 
-      const lineIdx = winning[0];
-      const lineLabel = LINE_LABELS[lineIdx];
+      // Loading state
+      const bingoBtn = document.getElementById('bingoBtn');
+      const originalText = bingoBtn.textContent;
+      bingoBtn.disabled = true;
+      bingoBtn.textContent = 'Declaring...';
 
-      // Use transaction to ensure only first winner
-      const winnerRef = db.ref('bingo-sessions/' + sessionId + '/winner');
-      const result = await winnerRef.transaction((current) => {
-        if (current === null) {
-          return {
-            playerId: playerId,
-            name: playerName,
-            line: lineLabel,
-            lineCells: WIN_LINES[lineIdx],
-            timestamp: Date.now()
-          };
+      try {
+        const lineIdx = winning[0];
+        const lineLabel = LINE_LABELS[lineIdx];
+
+        // Use transaction to ensure only first winner
+        const winnerRef = db.ref('bingo-sessions/' + sessionId + '/winner');
+        const result = await winnerRef.transaction((current) => {
+          if (current === null) {
+            return {
+              playerId: playerId,
+              name: playerName,
+              line: lineLabel,
+              lineCells: WIN_LINES[lineIdx],
+              timestamp: Date.now()
+            };
+          }
+          return; // abort — someone already won
+        });
+
+        if (!result.committed) {
+          document.getElementById('gameError').textContent = 'Someone beat you to it!';
         }
-        return; // abort — someone already won
-      });
-
-      if (!result.committed) {
-        document.getElementById('gameError').textContent = 'Someone beat you to it!';
+      } catch (err) {
+        document.getElementById('gameError').textContent = getUserFriendlyError(err);
+        console.error('Declare BINGO error:', err);
+      } finally {
+        // Restore button state
+        bingoBtn.disabled = false;
+        bingoBtn.textContent = originalText;
+        checkForWin(); // Re-check to update button state
       }
     }
 
@@ -1565,18 +1697,36 @@
     }
 
     // ---- Play Again (host) ----
-    async function playAgain() {
+    async function playAgain(event) {
       if (!isHost) return;
-      const newSeed = Math.floor(Math.random() * 2147483647);
-      const newRound = currentRound + 1;
 
-      // Each client resets their own progress via the round listener
-      await db.ref('bingo-sessions/' + sessionId).update({
-        seed: newSeed,
-        round: newRound,
-        status: 'playing',
-        winner: null
-      });
+      // Loading state
+      const btn = event ? event.target : null;
+      if (btn) {
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Starting...';
+      }
+
+      try {
+        const newSeed = Math.floor(Math.random() * 2147483647);
+        const newRound = currentRound + 1;
+
+        // Each client resets their own progress via the round listener
+        await db.ref('bingo-sessions/' + sessionId).update({
+          seed: newSeed,
+          round: newRound,
+          status: 'playing',
+          winner: null
+        });
+      } catch (err) {
+        console.error('Play again error:', err);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Play Again';
+        }
+      }
+      // Note: Winner overlay will be hidden, so no finally block needed
     }
 
     // ---- End Session (host only) ----

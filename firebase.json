@@ -1,7 +1,4 @@
 {
-    "dataconnect": {
-        "source": "dataconnect"
-    },
     "database": {
         "rules": "database.rules.json"
     }
