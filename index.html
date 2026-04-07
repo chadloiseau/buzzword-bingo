@@ -577,6 +577,7 @@
     .progress-item {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 10px;
       padding: 8px 12px;
       background: var(--bg-cell);
@@ -693,9 +694,28 @@
     }
 
     .progress-item.winner-item {
-      flex-wrap: wrap;
       border: 1px solid var(--gold);
       background: rgba(255, 215, 0, 0.05);
+    }
+
+    .marked-words-list {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .marked-word-chip {
+      font-size: 0.65rem;
+      background: rgba(0, 212, 170, 0.12);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      line-height: 1.3;
     }
 
     /* ============================================================
@@ -1024,7 +1044,19 @@
       "NPS", "Core KPIs", "Executive Leadership Team", "Empower", "Deck",
       "Market Insights", "LTO/RTO", "Asset", "Touch Points", "Agreement",
       "Smarter, Not Harder", "Customer Value", "Growth Org", "Pod Team/Pod Structure",
-      "Innovation"
+      "Innovation", "Acima", "Pods", "Shopping", "Payments",
+      "Roadmap", "Alignment", "Cross-Functional", "Value Tree", "Dashboard",
+      "Pre-Read", "Silos", "Narrative", "Temperature Check", "Customer Experience",
+      "Data Dictionary", "Accountability", "Framework", "Metrics", "Readout",
+      "Retention", "Acquisition", "Conversion", "Tooling", "GPMs",
+      "Peel Back the Onion", "Drink the Kool-Aid", "Socialize (an Idea)", "30,000-Foot View",
+      "Agile", "Iterate", "Fail Fast", "Move Fast and Break Things", "Deliverable",
+      "Runway", "Unblock", "Scrappy", "Data-Driven", "KPIs", "ROI",
+      "Needle-Mover", "Learnings", "Signal vs. Noise", "Single Source of Truth",
+      "Culture Fit", "Growth Mindset", "Own It", "Transparency", "Radical Candor",
+      "Psychological Safety", "AI-Powered", "At Scale", "Platform Play",
+      "Democratize", "Seamless", "Frictionless", "Hyperautomation",
+      "Quite Frankly", "To Your Point", "Per My Last Email", "Ping Me", "Reach Out"
     ];
 
     // ---- Seeded PRNG (mulberry32) ----
@@ -1514,7 +1546,11 @@
     // ---- Sync progress to Firebase ----
     function syncProgress() {
       const best = getBestLineProgress(markedCells);
-      db.ref('bingo-sessions/' + sessionId + '/players/' + playerId + '/progress').set(best);
+      const playerRef = db.ref('bingo-sessions/' + sessionId + '/players/' + playerId);
+      playerRef.update({
+        progress: best,
+        markedCells: [...markedCells]
+      });
     }
 
     // Returns the max number of marked cells in any single winning line
@@ -1534,10 +1570,10 @@
 
       // Sort: highest progress first, then alphabetically
       const entries = Object.entries(players)
-        .map(([pid, data]) => ({ pid, name: data.name, progress: data.progress || 0 }))
+        .map(([pid, data]) => ({ pid, name: data.name, progress: data.progress || 0, markedCells: data.markedCells || [] }))
         .sort((a, b) => b.progress - a.progress || a.name.localeCompare(b.name));
 
-      for (const { pid, name, progress } of entries) {
+      for (const { pid, name, progress, markedCells: pMarked } of entries) {
         const isWinner = currentWinner && currentWinner.playerId === pid;
         const li = document.createElement('li');
         li.className = 'progress-item' + (isWinner ? ' winner-item' : '');
@@ -1567,6 +1603,26 @@
         li.appendChild(label);
         li.appendChild(track);
         li.appendChild(stat);
+
+        // Show marked words as chips below the progress bar
+        if (pMarked.length > 0) {
+          const playerCard = generateCard(currentSeed, pid);
+          const wordsDiv = document.createElement('div');
+          wordsDiv.className = 'marked-words-list';
+          pMarked
+            .filter(idx => idx !== 12) // skip FREE SPACE
+            .forEach(idx => {
+              const r = Math.floor(idx / 5);
+              const c = idx % 5;
+              const chip = document.createElement('span');
+              chip.className = 'marked-word-chip';
+              chip.textContent = playerCard[r][c];
+              wordsDiv.appendChild(chip);
+            });
+          if (wordsDiv.children.length > 0) {
+            li.appendChild(wordsDiv);
+          }
+        }
 
         // Show the winner's mini card with winning line highlighted
         if (isWinner) {
