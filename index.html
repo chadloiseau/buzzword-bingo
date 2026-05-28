@@ -959,7 +959,7 @@
       document.getElementById('landingError').textContent = getUserFriendlyError(err);
     });
 
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
       if (user) {
         playerId = user.uid;
         authReady = true;
@@ -967,6 +967,9 @@
         document.querySelectorAll('[data-needs-auth]').forEach(btn => {
           btn.disabled = false;
         });
+        // Restore session if URL contains a session code
+        const urlSession = new URLSearchParams(window.location.search).get('session');
+        if (urlSession) await tryRestoreSession(urlSession);
       }
     });
 
@@ -1399,8 +1402,37 @@
       // Note: Button will be hidden when game starts, so no finally block needed
     }
 
+    // ---- Session Restore ----
+    async function tryRestoreSession(code) {
+      try {
+        const snap = await db.ref('bingo-sessions/' + code).once('value');
+        if (!snap.exists()) return;
+        const data = snap.val();
+
+        const SESSION_MAX_AGE = 24 * 60 * 60 * 1000;
+        if (data.createdAt && (Date.now() - data.createdAt > SESSION_MAX_AGE)) return;
+        if (!data.players || !data.players[playerId]) return;
+
+        sessionId = code;
+        playerName = data.players[playerId].name;
+        isHost = data.host === playerId;
+        currentSeed = data.seed;
+        currentRound = data.round || 1;
+
+        if (data.status === 'lobby') {
+          enterLobby();
+        } else if (data.status === 'playing') {
+          const saved = data.players[playerId].markedCells;
+          markedCells = saved ? new Set(saved) : new Set([12]);
+          enterGame(true);
+        }
+      } catch (err) {
+        console.error('Session restore failed:', err);
+      }
+    }
+
     // ---- Game ----
-    function enterGame() {
+    function enterGame(restoring = false) {
       if (gameActive) return;
       gameActive = true;
 
@@ -1417,8 +1449,10 @@
       document.getElementById('endSessionGameBtn').style.display = isHost ? 'inline-flex' : 'none';
 
       document.getElementById('roundInfo').textContent = 'Round ' + currentRound;
-      markedCells = new Set();
-      markedCells.add(12); // FREE SPACE (center = index 12 in flat 25-cell grid)
+      if (!restoring) {
+        markedCells = new Set();
+        markedCells.add(12); // FREE SPACE (center = index 12 in flat 25-cell grid)
+      }
 
       cardWords = generateCard(currentSeed, playerId);
       renderBoard();
